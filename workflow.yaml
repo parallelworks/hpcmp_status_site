@@ -78,6 +78,6 @@ jobs:
         uses: parallelworks/update-session
         with:
           remotePort: 8080
-          target: workspace
-          name: ${{ sessions.session }}
-          remoteHost: localhost
+          name: ${{ sessions.expose }}
+          status: 'running'
+          target: 'user-workspace'
