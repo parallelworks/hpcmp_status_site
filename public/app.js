@@ -16,6 +16,8 @@ const STATUS_URL = new URL("api/status", apiBase).toString();
 const REFRESH_URL = new URL("api/refresh", apiBase).toString();
 const STATIC_DATA_URL = new URL("data/status.json", defaultApiBase).toString();
 
+const THEME_STORAGE_KEY = "hpc-status-theme";
+
 const state = {
   systems: [],
   summary: {},
@@ -39,7 +41,53 @@ const elements = {
   statusFilter: document.getElementById("status-filter"),
   dsrcFilter: document.getElementById("dsrc-filter"),
   refreshBtn: document.getElementById("refresh-btn"),
+  themeToggle: document.getElementById("theme-toggle"),
+  themeLabel: document.querySelector("#theme-toggle .theme-label"),
+  themeIcon: document.querySelector("#theme-toggle .theme-icon"),
 };
+
+function safeGetStoredTheme() {
+  try {
+    return window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (err) {
+    console.warn("Unable to read theme from storage", err);
+    return null;
+  }
+}
+
+function safeSetStoredTheme(value) {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, value);
+  } catch (err) {
+    console.warn("Unable to persist theme", err);
+  }
+}
+
+function resolveDefaultTheme() {
+  return (window.APP_CONFIG && window.APP_CONFIG.defaultTheme) || document.documentElement.dataset.theme || "dark";
+}
+
+function applyTheme(theme, { persist = true } = {}) {
+  const normalized = theme === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = normalized;
+  document.body.dataset.theme = normalized;
+  if (persist) {
+    safeSetStoredTheme(normalized);
+  }
+  updateThemeToggle(normalized);
+}
+
+function updateThemeToggle(theme) {
+  if (elements.themeLabel) {
+    elements.themeLabel.textContent = theme === "dark" ? "Dark" : "Light";
+  }
+  if (elements.themeIcon) {
+    elements.themeIcon.textContent = theme === "dark" ? "🌙" : "☀️";
+  }
+  if (elements.themeToggle) {
+    elements.themeToggle.setAttribute("data-theme", theme);
+  }
+}
 
 const statusClass = (status) => {
   const normalized = (status || "UNKNOWN").toUpperCase();
@@ -275,6 +323,11 @@ function registerEvents() {
   elements.statusFilter.addEventListener("change", renderTable);
   elements.dsrcFilter.addEventListener("change", renderTable);
   elements.refreshBtn.addEventListener("click", () => triggerRefresh());
+  elements.themeToggle?.addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme || resolveDefaultTheme();
+    const next = current === "dark" ? "light" : "dark";
+    applyTheme(next);
+  });
 }
 
 function debounce(fn, delay = 200) {
@@ -285,6 +338,7 @@ function debounce(fn, delay = 200) {
   };
 }
 
+applyTheme(safeGetStoredTheme() || resolveDefaultTheme(), { persist: false });
 registerEvents();
 loadData();
 setInterval(() => loadData({ showLoading: false, silentFallback: true }), 3 * 60 * 1000);

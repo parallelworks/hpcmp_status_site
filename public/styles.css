@@ -1,5 +1,10 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --transition-speed: 0.25s;
+}
+
+:root[data-theme="dark"] {
   --bg: #030303;
   --bg-secondary: #0a0a0a;
   --panel: #10141a;
@@ -11,7 +16,22 @@
   --accent-soft: rgba(255, 59, 63, 0.18);
   --alert: #ff7a18;
   --success: #2de282;
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --placeholder-bg: rgba(0, 0, 0, 0.8);
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f6fb;
+  --bg-secondary: #ffffff;
+  --panel: #ffffff;
+  --panel-alt: #f0f2f9;
+  --text: #111322;
+  --muted: rgba(17, 19, 34, 0.7);
+  --border: rgba(0, 0, 0, 0.08);
+  --accent: #c1121f;
+  --accent-soft: rgba(193, 18, 31, 0.15);
+  --alert: #d9480f;
+  --success: #0f9157;
+  --placeholder-bg: rgba(255, 255, 255, 0.9);
 }
 
 *,
@@ -23,8 +43,9 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #000;
+  background: var(--bg);
   color: var(--text);
+  transition: background var(--transition-speed) ease, color var(--transition-speed) ease;
 }
 
 .page {
@@ -70,6 +91,12 @@ body {
   margin-bottom: 2rem;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.2em;
@@ -103,6 +130,29 @@ h1 {
 .ghost-btn:hover {
   border-color: var(--accent);
   box-shadow: 0 0 20px var(--accent-soft);
+}
+
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+.theme-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.25);
+}
+
+.theme-icon {
+  font-size: 1rem;
 }
 
 .cards {
@@ -145,7 +195,7 @@ h1 {
 
 .panel {
   padding: 1.25rem;
-  background: rgba(10, 10, 10, 0.7);
+  background: var(--panel);
   border-radius: 1rem;
   border: 1px solid var(--border);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
@@ -196,7 +246,7 @@ h1 {
   padding: 0.55rem 0.8rem;
   border-radius: 0.6rem;
   border: 1px solid var(--border);
-  background: rgba(3, 3, 3, 0.8);
+  background: var(--placeholder-bg);
   color: var(--text);
 }
 
@@ -207,7 +257,7 @@ h1 {
 }
 
 .table-panel {
-  background: rgba(3, 3, 3, 0.75);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 1rem;
   padding: 1rem;

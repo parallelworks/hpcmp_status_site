@@ -113,6 +113,9 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/status":
             self._handle_status()
             return
+        if parsed.path == "/app-config.js":
+            self._handle_app_config()
+            return
         return super().do_GET()
 
     def do_HEAD(self):
@@ -179,6 +182,21 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
         self._send_json({"ok": ok, "detail": detail}, status_code=status)
         self.log_message("Handled /api/refresh (ok=%s, detail=%s)", ok, detail)
         print(f"[dashboard] POST /api/refresh ok={ok} detail={detail}")
+
+    def _handle_app_config(self):
+        default_theme = getattr(self.server, "default_theme", "dark")  # type: ignore[attr-defined]
+        body = (
+            "window.APP_CONFIG=Object.assign({},window.APP_CONFIG||{},"
+            + json.dumps({"defaultTheme": default_theme}) +
+            ");"
+        ).encode("utf-8")
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "application/javascript; charset=utf-8")
+        self.send_header("Cache-Control", "no-store, max-age=0")
+        self.send_header("Content-Length", str(len(body)))
+        self._send_cors_headers()
+        self.end_headers()
+        self.wfile.write(body)
 
     def _send_json(self, data, *, status_code: HTTPStatus = HTTPStatus.OK):
         body = json.dumps(data).encode("utf-8")
@@ -248,6 +266,7 @@ def run_server(args) -> None:
     handler = functools.partial(DashboardRequestHandler, directory=str(PUBLIC_DIR))
     server = ThreadingHTTPServer((args.host, args.port), handler)
     server.url_prefix = normalized_prefix  # type: ignore[attr-defined]
+    server.default_theme = args.default_theme  # type: ignore[attr-defined]
     print(f"Serving dashboard on http://{args.host}:{args.port}")
     try:
         server.serve_forever()
@@ -271,6 +290,7 @@ def parse_args():
     parser.add_argument("--secure", dest="insecure", action="store_false", help="Require TLS verification.")
     parser.add_argument("--ca-bundle", type=str, help="Path to a custom CA bundle.")
     parser.add_argument("--url-prefix", default="", help="Path prefix to strip from incoming requests (e.g., /session/user/status).")
+    parser.add_argument("--default-theme", choices=("dark", "light"), default="dark", help="Initial theme for clients without a saved preference.")
     return parser.parse_args()
 
 

@@ -9,6 +9,7 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 PORT="${PORT:-8080}"
 HOST="${HOST:-0.0.0.0}"
 URL_PREFIX="${URL_PREFIX:-}"
+DEFAULT_THEME="${DEFAULT_THEME:-dark}"
 
 cd "${SCRIPT_DIR}"
 
@@ -16,10 +17,10 @@ echo "[run_dashboard] Installing Python dependencies..."
 "${PYTHON_BIN}" -m pip install --upgrade pip >/dev/null
 "${PYTHON_BIN}" -m pip install -r requirements.txt
 
-cmd=("${PYTHON_BIN}" "dashboard_server.py" "--host" "${HOST}" "--port" "${PORT}")
+cmd=("${PYTHON_BIN}" "dashboard_server.py" "--host" "${HOST}" "--port" "${PORT}" "--default-theme" "${DEFAULT_THEME}")
 if [[ -n "${URL_PREFIX}" ]]; then
   cmd+=("--url-prefix" "${URL_PREFIX}")
 fi
 
-echo "[run_dashboard] Starting dashboard on ${HOST}:${PORT} ${URL_PREFIX:+(prefix: ${URL_PREFIX})}"
+echo "[run_dashboard] Starting dashboard on ${HOST}:${PORT} ${URL_PREFIX:+(prefix: ${URL_PREFIX})} (default theme: ${DEFAULT_THEME})"
 exec "${cmd[@]}"

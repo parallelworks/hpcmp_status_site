@@ -24,6 +24,14 @@ server refreshes the data every three minutes automatically; clicking the UI
 refresh button hits `/api/refresh`, which immediately re-scrapes the upstream
 page and pushes the latest metrics to `/api/status`.
 
+### Theme options
+
+Use the moon/sun toggle in the header to switch between the dark (DoD HPC shell
+matching) palette and a high-contrast light theme. The preference is stored in
+the browser so reloading the page preserves the last choice. Server operators
+can set the default by passing `--default-theme light|dark` when launching
+`dashboard_server.py`; first-time visitors inherit that value until they switch.
+
 When hosting behind a path prefix (e.g., `/session/<user>/status/`), launch the
 server with the same prefix so static assets and APIs line up:
 

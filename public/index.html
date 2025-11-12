@@ -5,6 +5,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HPC Status Dashboard</title>
+  <script src="app-config.js"></script>
+  <script>
+    (function () {
+      try {
+        const saved = window.localStorage.getItem("hpc-status-theme");
+        const fallback = (window.APP_CONFIG && window.APP_CONFIG.defaultTheme) || "dark";
+        const initial = saved || fallback || "dark";
+        document.documentElement.dataset.theme = initial;
+      } catch (err) {
+        document.documentElement.dataset.theme = (window.APP_CONFIG && window.APP_CONFIG.defaultTheme) || "dark";
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -18,7 +31,13 @@
           Live snapshot of the HPC.MIL unclassified systems page.
         </p>
       </div>
-      <button id="refresh-btn" class="ghost-btn">Refresh data</button>
+      <div class="hero-actions">
+        <button id="refresh-btn" class="ghost-btn">Refresh data</button>
+        <button id="theme-toggle" class="theme-btn" aria-label="Toggle color theme">
+          <span class="theme-icon" aria-hidden="true">🌙</span>
+          <span class="theme-label">Dark</span>
+        </button>
+      </div>
     </header>
 
     <section class="cards">
