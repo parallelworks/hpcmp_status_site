@@ -7,27 +7,23 @@
   <title>HPC Status Dashboard</title>
   <script>
     (function () {
-      var loc = window.location;
-      var path = loc.pathname || "/";
-      var last = path.split("/").filter(Boolean).pop() || "";
-      var hasDot = last.includes(".");
-      if (!path.endsWith("/") && !hasDot) {
-        var next = loc.origin + path + "/" + loc.search + loc.hash;
-        loc.replace(next);
+      function deriveBasePath(pathname) {
+        var path = pathname || "/";
+        if (path.endsWith("/")) {
+          return path;
+        }
+        var lastSlash = path.lastIndexOf("/");
+        var segment = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
+        var prefix = lastSlash >= 0 ? path.slice(0, lastSlash + 1) : "/";
+        if (segment.includes(".")) {
+          return prefix || "/";
+        }
+        return path + "/";
       }
-    })();
-  </script>
-  <script>
-    (function () {
-      var path = window.location.pathname || "/";
-      if (!path.endsWith("/")) {
-        path = path.replace(/[^/]+$/, "/");
-      }
-      if (!path.endsWith("/")) {
-        path += "/";
-      }
+      var path = deriveBasePath(window.location.pathname || "/");
       var base = document.createElement("base");
       base.href = window.location.origin + path;
+      document.documentElement.setAttribute("data-base-path", path);
       document.head.appendChild(base);
     })();
   </script>
