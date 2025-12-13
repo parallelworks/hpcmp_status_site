@@ -1,5 +1,20 @@
+function deriveBasePath(pathname) {
+  const path = pathname || "/";
+  if (path.endsWith("/")) {
+    return path;
+  }
+  const lastSlash = path.lastIndexOf("/");
+  const segment = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
+  const prefix = lastSlash >= 0 ? path.slice(0, lastSlash + 1) : "/";
+  if (segment.includes(".")) {
+    return prefix || "/";
+  }
+  return `${path}/`;
+}
+
 const pageUrl = new URL(window.location.href);
-const basePath = pageUrl.pathname.endsWith("/") ? pageUrl.pathname : pageUrl.pathname.replace(/[^/]+$/, "");
+const dataBasePath = document.documentElement.dataset.basePath || "";
+const basePath = dataBasePath || deriveBasePath(pageUrl.pathname);
 const defaultApiBase = new URL(basePath || "/", pageUrl.origin);
 const configuredBase = window.API_BASE_URL || document.documentElement.getAttribute("data-api-base");
 const apiBase = (() => {
