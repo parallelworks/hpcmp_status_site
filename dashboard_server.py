@@ -14,18 +14,20 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import re
 import threading
 import time
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 from dashboard_data import determine_verify, generate_payload, write_payload
 
 PUBLIC_DIR = Path(__file__).resolve().parent / "public"
 DATA_PATH = PUBLIC_DIR / "data" / "status.json"
+SYSTEM_MARKDOWN_DIR = Path(__file__).resolve().parent / "system_markdown"
 DEFAULT_REFRESH_SECONDS = 180
 
 
@@ -118,6 +120,10 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/app-config.js":
             self._handle_app_config()
             return
+        if parsed.path.startswith("/api/system-markdown/"):
+            slug_part = parsed.path.split("/api/system-markdown/", 1)[-1]
+            self._handle_system_markdown(slug_part)
+            return
         return super().do_GET()
 
     def do_HEAD(self):
@@ -201,6 +207,34 @@ class DashboardRequestHandler(SimpleHTTPRequestHandler):
         self._send_cors_headers()
         self.end_headers()
         self.wfile.write(body)
+
+    def _handle_system_markdown(self, slug_part: str) -> None:
+        raw = unquote(slug_part or "")
+        if raw.endswith(".md"):
+            raw = raw[:-3]
+        normalized = re.sub(r"[^a-z0-9]", "", raw.lower())
+        if not normalized:
+            self.send_error(HTTPStatus.BAD_REQUEST, "Invalid system identifier.")
+            return
+        base_dir = SYSTEM_MARKDOWN_DIR.resolve()
+        if not base_dir.exists():
+            self.send_error(HTTPStatus.NOT_FOUND, "Markdown directory not available.")
+            return
+        target = (base_dir / f"{normalized}.md").resolve()
+        try:
+            target.relative_to(base_dir)
+        except ValueError:
+            self.send_error(HTTPStatus.BAD_REQUEST, "Invalid markdown path.")
+            return
+        if not target.exists():
+            self.send_error(HTTPStatus.NOT_FOUND, "Markdown not found.")
+            return
+        try:
+            content = target.read_text(encoding="utf-8")
+        except Exception as exc:  # pragma: no cover - best effort logging
+            self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, f"Unable to read markdown: {exc}")
+            return
+        self._send_json({"slug": normalized, "content": content})
 
     def _send_json(self, data, *, status_code: HTTPStatus = HTTPStatus.OK):
         body = json.dumps(data).encode("utf-8")
