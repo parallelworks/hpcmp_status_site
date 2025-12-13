@@ -19,13 +19,15 @@ STORAGE_ROOT = Path(__file__).resolve().parents[1]
 if str(STORAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(STORAGE_ROOT))
 
-from hpc_status_scraper import (  # type: ignore  # noqa: E402
+from hpc_status_scraper_markdown import (  # type: ignore  # noqa: E402
     DEFAULT_CA_BUNDLE,
     UNCLASSIFIED_URL,
     fetch_status,
+    write_markdown_files,
 )
 
 Payload = Dict[str, object]
+SYSTEM_MARKDOWN_DIR = Path(__file__).resolve().parent / "system_markdown"
 
 
 def determine_verify(insecure: bool = True, ca_bundle: Optional[str] = None):
@@ -71,14 +73,20 @@ def generate_payload(
     url: Optional[str] = None,
     timeout: int = 20,
     verify=None,
+    markdown_dir: Optional[Path] = SYSTEM_MARKDOWN_DIR,
 ) -> Payload:
     target_url = url or UNCLASSIFIED_URL
-    rows = fetch_status(
+    rows, soup = fetch_status(
         url=target_url,
         timeout=timeout,
         verify=verify if verify is not None else DEFAULT_CA_BUNDLE,
         headers={"User-Agent": "pw-status-dashboard/1.1"},
     )
+    if markdown_dir:
+        try:
+            write_markdown_files(rows, soup, str(markdown_dir), target_url)
+        except Exception as exc:  # pragma: no cover - propagate so refresh fails loudly
+            raise RuntimeError(f"Failed to generate markdown briefs: {exc}") from exc
     return build_payload(rows, source_url=target_url)
 
 
