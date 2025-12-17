@@ -25,6 +25,10 @@ class ClusterMonitor:
         self.current_cluster_index = 0
         self.max_retries = 3
         self.retry_delay = 5  # seconds
+        self.fast_watch_interval = 12  # seconds
+        self.fast_watch_duration = 120  # seconds
+        self.enable_fast_watch = self.fast_watch_interval > 0 and self.fast_watch_duration > 0
+        self.known_clusters = set()
 
     def get_active_clusters(self) -> List[Dict[str, str]]:
         """
@@ -406,12 +410,12 @@ class ClusterMonitor:
 
         return queue_data
 
-    def process_clusters_round_robin(self) -> List[Dict[str, Any]]:
+    def process_clusters_round_robin(self) -> Dict[str, Dict[str, Any]]:
         """
         Process all clusters in round-robin fashion
-        Returns list of cluster usage/queue documents.
+        Returns dict keyed by cluster name with usage/queue documents.
         """
-        results: List[Dict[str, Any]] = []
+        results: Dict[str, Dict[str, Any]] = {}
 
         # Get active clusters
         clusters = self.get_active_clusters()
@@ -425,53 +429,94 @@ class ClusterMonitor:
         for i, cluster in enumerate(clusters):
             cluster_name = cluster['uri'].split('/')[-1]  # Extract cluster name from URI
             print(f"Processing cluster {i+1}/{len(clusters)}: {cluster_name}")
-
-            # Get usage data
-            usage_data = self.get_cluster_usage(cluster['uri'])
-            if usage_data:
-                print(f"Successfully got usage data for {cluster_name}")
-            else:
-                print(f"Failed to get usage data for {cluster_name}")
-
-            # Get queue data
-            queue_data = self.get_cluster_queues(cluster['uri'])
-            if queue_data:
-                print(f"Successfully got queue data for {cluster_name}")
-            else:
-                print(f"Failed to get queue data for {cluster_name}")
-
-            # Add to results
-            results.append({
-                'cluster_metadata': {
-                    'name': cluster_name,
-                    'uri': cluster['uri'],
-                    'status': cluster['status'],
-                    'type': cluster['type'],
-                    'timestamp': datetime.utcnow().isoformat()
-                },
-                'usage_data': usage_data or {},
-                'queue_data': queue_data or {}
-            })
-
+            cluster_data = self.process_single_cluster(cluster, verbose=True)
+            if cluster_data:
+                results[cluster_name] = cluster_data
+                self.known_clusters.add(cluster['uri'])
             # Small delay between clusters
             time.sleep(1)
 
         return results
 
-    def save_results_to_json(self, results: List[Dict[str, Any]], filename: Optional[str] = None) -> bool:
+    def process_single_cluster(self, cluster: Dict[str, str], verbose: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        Process a single cluster and return its data structure.
+        """
+        if not cluster:
+            return None
+
+        cluster_name = cluster['uri'].split('/')[-1]
+        usage_data = self.get_cluster_usage(cluster['uri'])
+        if verbose:
+            if usage_data:
+                print(f"Successfully got usage data for {cluster_name}")
+            else:
+                print(f"Failed to get usage data for {cluster_name}")
+
+        queue_data = self.get_cluster_queues(cluster['uri'])
+        if verbose:
+            if queue_data:
+                print(f"Successfully got queue data for {cluster_name}")
+            else:
+                print(f"Failed to get queue data for {cluster_name}")
+
+        return {
+            'cluster_metadata': {
+                'name': cluster_name,
+                'uri': cluster['uri'],
+                'status': cluster['status'],
+                'type': cluster['type'],
+                'timestamp': datetime.utcnow().isoformat()
+            },
+            'usage_data': usage_data or {},
+            'queue_data': queue_data or {}
+        }
+
+    def save_results_to_json(self, results, filename: Optional[str] = None) -> bool:
         """
         Save results to JSON file with enhanced structure
         """
         output_path = Path(filename) if filename else Path(__file__).resolve().parent / "public" / "data" / "cluster_usage.json"
         try:
             output_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = list(results.values()) if isinstance(results, dict) else results
             with output_path.open('w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2)
+                json.dump(payload, f, indent=2)
             print(f"Enhanced results saved to {output_path}")
             return True
         except Exception as e:
             print(f"Error saving enhanced results: {e}")
             return False
+
+    def monitor_new_clusters(self, results: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """
+        During the watch window, poll for new clusters more frequently and update their data.
+        """
+        if not self.enable_fast_watch:
+            return results
+
+        end_time = time.time() + self.fast_watch_duration
+        print(f"Starting fast watch for new clusters for {self.fast_watch_duration} seconds...")
+        while time.time() < end_time:
+            time.sleep(self.fast_watch_interval)
+            active_clusters = self.get_active_clusters()
+            new_clusters = [
+                cluster for cluster in active_clusters
+                if cluster['uri'] not in self.known_clusters
+            ]
+            if not new_clusters:
+                continue
+
+            print(f"Detected {len(new_clusters)} new connected cluster(s). Updating immediately...")
+            for cluster in new_clusters:
+                cluster_data = self.process_single_cluster(cluster, verbose=True)
+                if cluster_data:
+                    results[cluster_data['cluster_metadata']['name']] = cluster_data
+                    self.known_clusters.add(cluster['uri'])
+            self.save_results_to_json(results)
+
+        print("Fast watch window complete.")
+        return results
 
     def run(self) -> bool:
         """
@@ -482,13 +527,20 @@ class ClusterMonitor:
         # Process clusters in round-robin
         results = self.process_clusters_round_robin()
 
+        # Save initial results if available
         if results:
-            # Save to JSON
             self.save_results_to_json(results)
+
+        # Fast watch for any newly connected clusters
+        updated_results = self.monitor_new_clusters(results)
+
+        if updated_results:
+            # Ensure latest snapshot is persisted
+            self.save_results_to_json(updated_results)
             return True
-        else:
-            print("No results to save")
-            return False
+
+        print("No results to save")
+        return False
 
 if __name__ == "__main__":
     # Create and run the monitor
