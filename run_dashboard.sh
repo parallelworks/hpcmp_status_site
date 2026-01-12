@@ -20,6 +20,9 @@ echo "[run_dashboard] Installing Python dependencies..."
 "${PYTHON_BIN}" -m pip install --upgrade pip >/dev/null
 "${PYTHON_BIN}" -m pip install -r requirements.txt
 
+echo "cleaning up previous dashboard processes..."
+netstat -tulpn | grep $PORT | awk '{print $7}' | cut -d '/' -f1 | xargs kill > /dev/null 2>&1
+
 cmd=("${PYTHON_BIN}" "dashboard_server.py" "--host" "${HOST}" "--port" "${PORT}" "--default-theme" "${DEFAULT_THEME}")
 if [[ -n "${URL_PREFIX}" ]]; then
   cmd+=("--url-prefix" "${URL_PREFIX}")
