@@ -2,7 +2,7 @@
 #
 # Bootstrap dependencies and run the HPC dashboard server.
 
-set -euo pipefail
+set -x
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
